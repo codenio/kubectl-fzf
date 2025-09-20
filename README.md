@@ -38,7 +38,7 @@ kubectl-fzf automatically handles resource listing for commands that require spe
 
 1. **Download the script**:
    ```bash
-   curl -O https://raw.githubusercontent.com/your-username/kubectl-fzf/main/kubectl-fzf.sh
+   curl -O https://raw.githubusercontent.com/codenio/kubectl-fzf/main/kubectl-fzf.sh
    ```
 
 2. **Source the function** in your shell profile (`~/.zshrc`, `~/.bashrc`):

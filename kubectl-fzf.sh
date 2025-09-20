@@ -1,72 +1,75 @@
 kubectl() {
-    # Check if fzf is installed
+    # kubectl-fzf: Interactive kubectl with fuzzy finder
+    # Usage: kubectl <command> <resource> --fzf [options]
+    # Examples: kubectl describe pod --fzf | kubectl logs pod --fzf -f | kubectl delete deploy --fzf -A
+
+    # Check for fzf dependency
     if ! command -v fzf &>/dev/null; then
         echo "Error: fzf is not installed. Please install fzf and try again." >&2
         return 1
     fi
 
-    # If --fzf flag is not present, use original kubectl
+    # Pass through to original kubectl if --fzf not used
     if [[ $* != *--fzf* ]]; then
         command kubectl "$@"
         return $?
     fi
 
-    local subcommand="$1"
-    local object="$2"
-    local -a flags=()
-    local use_all_namespaces=false
-    local debug_mode=false
+    # Parse command: kubectl describe pod --fzf -f → subcommand=describe, object=pod, flags=(-f)
+    local subcommand="$1"              # describe, logs, delete, etc.
+    local object="$2"                  # pod, deployment, service, etc.
+    local -a flags=()                  # additional flags to pass through
+    local use_all_namespaces=false     # -A flag detected
+    local debug_mode=false             # --debug flag detected
     
-    # Parse flags more efficiently
+    # Separate fzf flags from kubectl flags
+    # Example: --fzf --debug -f -A → debug_mode=true, use_all_namespaces=true, flags=(-f)
     local arg
     for arg in "${@:3}"; do
         case "$arg" in
-            --fzf) ;;  # Skip fzf flag
-            --debug) debug_mode=true ;;
-            -A|--all-namespaces) use_all_namespaces=true ;;
-            *) flags+=("$arg") ;;
+            --fzf) ;;                           # skip trigger flag
+            --debug) debug_mode=true ;;         # enable debug output
+            -A|--all-namespaces) use_all_namespaces=true ;; # cross-namespace
+            *) flags+=("$arg") ;;               # pass through to kubectl
         esac
     done
 
-    # For commands that need specific resources, use 'get' to list them first
+    # Build listing command: describe pod → kubectl get pod, get pod → kubectl get pod
     local list_cmd=("kubectl")
     case "$subcommand" in
         describe|logs|delete|edit|port-forward)
-            list_cmd+=("get" "$object")
+            list_cmd+=("get" "$object")         # use 'get' to list resources first
             ;;
         *)
-            list_cmd+=("$subcommand" "$object")
+            list_cmd+=("$subcommand" "$object") # use command as-is
             ;;
     esac
     [[ "$use_all_namespaces" == true ]] && list_cmd+=("-A")
 
-    # Debug output if requested
+    # Debug output
     if [[ "$debug_mode" == true ]]; then
-        echo "subcommand: $subcommand" >&2
-        echo "object: $object" >&2
-        echo "flags: ${flags[*]}" >&2
-        echo "use_all_namespaces: $use_all_namespaces" >&2
-        echo "list_cmd: ${list_cmd[*]}" >&2
+        echo "=== Debug: $subcommand $object → ${list_cmd[*]} ===" >&2
     fi
 
+    # Get resource list from kubectl
     local resource_list
     if ! resource_list=$("${list_cmd[@]}" 2>/dev/null); then
         echo "Error: No resources found for '${list_cmd[*]}'." >&2
         return 1
     fi
 
-    # Use fzf to select resource
+    # Show fzf selector: my-pod-123, my-pod-456 → user selects → my-pod-123
     local selection
     if ! selection=$(echo "$resource_list" | fzf --height=50% --layout=reverse --prompt="Select resource: "); then
         echo "No selection made." >&2
         return 1
     fi
 
-    # Parse selection and build final command
+    # Build final command: kubectl describe pod my-pod-123 -n kube-system
     local final_cmd=("kubectl" "$subcommand" "$object")
     
     if [[ "$use_all_namespaces" == true ]]; then
-        # For -A flag, we need resource name and namespace
+        # Parse -A output: "kube-system my-pod-123" → resource=my-pod-123, namespace=kube-system
         local resource_name namespace
         read -r namespace resource_name <<< "$(echo "$selection" | awk '{if (NF>=2) print $1, $2; else print "", $1}')"
         
@@ -78,15 +81,15 @@ kubectl() {
         final_cmd+=("$resource_name")
         [[ -n "$namespace" ]] && final_cmd+=("-n" "$namespace")
     else
-        # For current namespace, just get resource name
+        # Parse current namespace output: "my-pod-123" → resource=my-pod-123
         local resource_name
         resource_name=$(echo "$selection" | awk '{print $1}')
         final_cmd+=("$resource_name")
     fi
     
-    # Add additional flags
+    # Add user flags: kubectl describe pod my-pod-123 -o yaml
     final_cmd+=("${flags[@]}")
     
-    # Execute the command using print -rz for zsh history
+    # Put command in zsh history for user to execute
     print -rz -- "${final_cmd[*]}"
 }
