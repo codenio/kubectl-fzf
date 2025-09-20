@@ -17,7 +17,6 @@ kubectl-fzf automatically handles resource listing for commands that require spe
 - `logs` - View logs from pods (automatically uses pods, no need to specify resource type)
 - `delete` - Delete specific resources
 - `edit` - Edit resource configurations
-- `port-forward` - Forward ports from pods/services
 
 ### Namespace Operations
 - **Current namespace**: Work within your current kubectl context
@@ -215,7 +214,7 @@ Debug output shows:
 ## 🔧 How It Works
 
 1. **Command Detection**: Detects presence of `:` shorthand or `--fzf` flag
-2. **Smart Listing**: For commands like `describe`, `logs`, `delete`, `edit`, `port-forward`, uses `kubectl get` to list resources
+2. **Smart Listing**: For commands like `describe`, `logs`, `delete`, `edit`, uses `kubectl get` to list resources
 3. **Interactive Selection**: Presents resources in fzf for fuzzy selection with customized height and layout
 4. **Command Generation**: Builds final kubectl command with selected resource and original flags
 5. **History Integration**: Uses `print -rz` to add command to zsh history for easy re-execution
@@ -263,6 +262,27 @@ kubectl describe pod --fzf --debug
 kubectl get pod : -A --debug
 kubectl get pod -A --fzf --debug
 ```
+
+## 🚧 Todo / Roadmap
+
+### Planned Features
+- **Port forwarding support**: `kubectl port-forward` integration with fzf selection
+- **Enhanced resource filtering**: Advanced filtering options for large resource lists
+- **Multi-resource operations**: Support for bulk operations on selected resources
+- **Configuration file**: Support for user configuration and custom aliases
+- **Extended shell support**: Improved bash compatibility and fish shell support
+
+### Performance Improvements
+- **Caching layer**: Cache resource listings for faster subsequent operations
+- **Parallel processing**: Optimize resource fetching for large clusters
+- **Smart pagination**: Handle large resource lists more efficiently
+
+### User Experience
+- **Custom fzf options**: Allow users to configure fzf behavior and appearance
+- **Resource previews**: Show resource details in fzf preview pane
+- **History integration**: Better command history and favorite commands
+
+Contributions and feature requests are welcome! Feel free to open an issue to discuss any of these features.
 
 ## 📝 License
 

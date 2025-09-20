@@ -62,7 +62,7 @@ kubectl() {
         logs) 
             list_cmd+=("get" "pods")            # logs always uses pods
             ;;
-        describe|delete|edit|port-forward)
+        describe|delete|edit)
             list_cmd+=("get" "$object")         # use 'get' to list resources first
             ;;
         *)
