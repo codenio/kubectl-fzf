@@ -13,7 +13,7 @@ An interactive kubectl wrapper that uses [fzf](https://github.com/junegunn/fzf) 
 kubectl-fzf automatically handles resource listing for commands that require specific targets:
 
 - `describe` - Describe specific resources
-- `logs` - View logs from pods
+- `logs` - View logs from pods (automatically uses pods, no need to specify resource type)
 - `delete` - Delete specific resources
 - `edit` - Edit resource configurations
 - `port-forward` - Forward ports from pods/services
@@ -34,21 +34,95 @@ kubectl-fzf automatically handles resource listing for commands that require spe
 - **fzf**: Command-line fuzzy finder ([installation guide](https://github.com/junegunn/fzf#installation))
 - **zsh**: For optimal command history integration
 
+
+## Quick Start / Try
+
+1. Try kubectl-fzf without installation by source it in your current tab/session 
+   
+   ```bash
+   $ source <(curl -sSL "https://raw.githubusercontent.com/codenio/kubectl-fzf/main/kubectl-fzf.sh")
+   ```
+
+2. Cross Check loading to function using `which kubectl` command
+   ```bash
+   $ which kubectl
+   kubectl () {
+        if ! command -v fzf &> /dev/null
+        then
+                echo "Error: fzf is not installed. Please install fzf and try again." >&2
+                return 1
+        fi
+        ...
+        ...
+   }
+   ```
+
+3. To remove from current session
+   ```bash
+   $ unset -f kubectl
+   ```
+
+4. Cross Check unsetting of function using `which kubectl` command
+   ```bash
+   $ which kubectl
+   /Users/codenio/.rd/bin/kubectl
+   ```
+
 ## 🛠️ Installation
 
 1. **Download the script**:
    ```bash
-   curl -O https://raw.githubusercontent.com/codenio/kubectl-fzf/main/kubectl-fzf.sh
+   $ curl -O https://raw.githubusercontent.com/codenio/kubectl-fzf/main/kubectl-fzf.sh
    ```
 
 2. **Source the function** in your shell profile (`~/.zshrc`, `~/.bashrc`):
    ```bash
-   source /path/to/kubectl-fzf.sh
+   $ source /path/to/kubectl-fzf.sh
    ```
 
 3. **Reload your shell**:
    ```bash
+   $ source ~/.zshrc  # or ~/.bashrc
+   ```
+
+#### or 
+
+1. Directly source it your shell profile
+
+   ```bash
+   $ curl https://raw.githubusercontent.com/codenio/kubectl-fzf/main/kubectl-fzf.sh >> ~/.zshrc && source ~/.zshrc # or ~/.bashrc
+   ```
+
+## 🛠️ Un-Installation
+
+### Temporary Removal (Current Session Only)
+
+```bash
+unset -f kubectl
+```
+This removes the kubectl-fzf function from your current shell session. The original kubectl command will be restored.
+
+### Permanent Removal
+
+1. **Remove from shell profile**: Edit your `~/.zshrc` or `~/.bashrc` and remove/comment out the line:
+   ```bash
+   # source /path/to/kubectl-fzf.sh
+   ```
+
+2. **Reload your shell**:
+   ```bash
    source ~/.zshrc  # or ~/.bashrc
+   ```
+
+3. **Verify removal**:
+   ```bash
+   which kubectl
+   # Should show: /path/to/original/kubectl (not the function)
+   ```
+
+4. **Optional**: Delete the downloaded script file:
+   ```bash
+   rm /path/to/kubectl-fzf.sh
    ```
 
 ## 🎯 Usage
@@ -56,6 +130,11 @@ kubectl-fzf automatically handles resource listing for commands that require spe
 ### Basic Syntax
 ```bash
 kubectl <command> <resource-type> --fzf [additional-flags]
+```
+
+**Special case for logs**: 
+```bash
+kubectl logs --fzf [additional-flags]  # No need to specify 'pod'
 ```
 
 ### Examples
@@ -70,10 +149,11 @@ kubectl describe pod --fzf
 
 #### View Logs with Options
 ```bash
-kubectl logs pod --fzf -f --tail=100
+kubectl logs --fzf -f --tail=100
 ```
-1. Select a pod via fzf
-2. Generates: `kubectl logs <selected-pod> -f --tail=100`
+1. Automatically lists all pods via fzf (no need to specify 'pod')
+2. Select a pod from the list
+3. Generates: `kubectl logs pod <selected-pod> -f --tail=100`
 
 #### Cross-Namespace Operations
 ```bash
