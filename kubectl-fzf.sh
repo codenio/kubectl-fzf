@@ -1,9 +1,10 @@
 kubectl() {
     # kubectl-fzf: Interactive kubectl with fuzzy finder
-    # Usage: kubectl <command> <resource> --fzf [options]
+    # Usage: kubectl <command> <resource> [options] --fzf
     # Examples: 
-    # kubectl describe pod --fzf 
-    # kubectl logs pod --fzf -f | kubectl delete deploy --fzf -A
+    # kubectl describe pod : -n kube-system
+    # kubectl logs pod -f --fzf
+    # kubectl delete deploy : -A
 
     # Check for fzf dependency
     if ! command -v fzf &>/dev/null; then
@@ -12,7 +13,7 @@ kubectl() {
     fi
 
     # Pass through to original kubectl if --fzf not used
-    if [[ $* != *--fzf* ]]; then
+    if [[ $* != *--fzf* && $* != *:* ]]; then
         command kubectl "$@"
         return $?
     fi
@@ -23,23 +24,34 @@ kubectl() {
     local object="$2"                  # pod, deployment, service, etc.
     local -a flags=()                  # additional flags to pass through
     local use_all_namespaces=false     # -A flag detected
-    local debug_mode=false             # --debug flag detected
+    unset -v namespace                 # namespace
+    local next_is_namespace=false      # next arg is namespace
+    local use_namespace=false          # -n flag detected
     local start_index=3                # where to start processing remaining args
+    local debug_mode=false             # --debug flag detected
     
-    # Handle logs --fzf case (no resource type specified)
-    if [[ "$subcommand" == "logs" && "$object" == "--fzf" ]]; then
-        object=""                       # no object specified for logs
-        start_index=3                   # start processing from --fzf
-    fi
     
     # Separate fzf flags from kubectl flags
     # Example: --fzf --debug -f -A → debug_mode=true, use_all_namespaces=true, flags=(-f)
     local arg
     for arg in "${@:$start_index}"; do
+        if [[ "$next_is_namespace" == true ]]; then
+            namespace="$arg"
+            next_is_namespace=false
+            use_namespace=true
+            flags+=("$arg")
+            continue
+        fi
         case "$arg" in
-            --fzf) ;;                           # skip trigger flag
+            --fzf|:) ;;                         # skip trigger flag --fzf or :
             --debug) debug_mode=true ;;         # enable debug output
-            -A|--all-namespaces) use_all_namespaces=true ;; # cross-namespace
+            -A|--all-namespaces) 
+                use_all_namespaces=true
+                ;; # cross-namespace
+            -n|--namespace) 
+                next_is_namespace=true 
+                flags+=("$arg")
+                ;; # next arg is namespace
             *) flags+=("$arg") ;;               # pass through to kubectl
         esac
     done
@@ -47,25 +59,39 @@ kubectl() {
     # Build listing command: describe pod → kubectl get pod, get pod → kubectl get pod
     local list_cmd=("kubectl")
     case "$subcommand" in
-        logs)
+        logs) 
             list_cmd+=("get" "pods")            # logs always uses pods
             ;;
         describe|delete|edit|port-forward)
-            if [[ "$object" == "--fzf" ]]; then
-                echo "Error: Resource type required. Usage: kubectl $subcommand <resource> --fzf" >&2
-                return 1
-            fi
             list_cmd+=("get" "$object")         # use 'get' to list resources first
             ;;
         *)
             list_cmd+=("$subcommand" "$object") # use command as-is
             ;;
     esac
-    [[ "$use_all_namespaces" == true ]] && list_cmd+=("-A")
+
+    # handle namespaces
+    if [[ "$use_all_namespaces" == true ]]; then
+        # use all namespace
+        list_cmd+=("-A")
+    elif [[ "$use_namespace" == true ]]; then
+        # use passed namespace
+        list_cmd+=("-n" "$namespace")
+    fi
 
     # Debug output
     if [[ "$debug_mode" == true ]]; then
-        echo "=== Debug: $subcommand $object → ${list_cmd[*]} ===" >&2
+        echo "=== Debug: $subcommand $object → ${list_cmd[*]} ${flags[*]} ===" >&2
+        
+        if [[ "$use_all_namespaces" == true ]]; then
+            echo "=== Debug: use_all_namespaces : $use_all_namespaces ===" >&2
+        fi
+        if [[ "$use_namespace" == true ]]; then
+            echo "=== use_namespace             : $use_namespace ===" >&2
+            echo "=== Debug: namespace          : $namespace ===" >&2
+        fi
+        echo "=== Debug: flags              : ${flags[*]} ===" >&2
+        echo "=== Debug: list_cmd           : ${list_cmd[*]} ===" >&2
     fi
 
     # Get resource list from kubectl
@@ -83,8 +109,7 @@ kubectl() {
     fi
 
     # Build final command: kubectl describe pod my-pod-123 -n kube-system
-    local final_object="$object"
-    local final_cmd=("kubectl" "$subcommand" "$final_object")
+    local final_cmd=("kubectl" "$subcommand" "$object")
     
     if [[ "$use_all_namespaces" == true ]]; then
         # Parse -A output: "kube-system my-pod-123" → resource=my-pod-123, namespace=kube-system
@@ -99,7 +124,7 @@ kubectl() {
         final_cmd+=("$resource_name")
         [[ -n "$namespace" ]] && final_cmd+=("-n" "$namespace")
     else
-        # Parse current namespace output: "my-pod-123" → resource=my-pod-123
+        # use current namespace
         local resource_name
         resource_name=$(echo "$selection" | awk '{print $1}')
         final_cmd+=("$resource_name")
