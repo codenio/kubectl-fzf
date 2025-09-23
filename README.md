@@ -2,6 +2,8 @@
 
 An interactive kubectl wrapper that uses [fzf](https://github.com/junegunn/fzf) for fuzzy resource selection, making Kubernetes operations more intuitive and faster.
 
+![](docs/kubectl-fzf.gif)
+
 ## 🚀 Features
 
 ### Interactive Resource Selection
