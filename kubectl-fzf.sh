@@ -1,3 +1,5 @@
+
+# kubectl-fzf: Interactive kubectl with fuzzy finder
 kubectl() {
     # kubectl-fzf: Interactive kubectl with fuzzy finder
     # Usage: kubectl <command> <resource> [options] --fzf

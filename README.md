@@ -267,15 +267,11 @@ kubectl get pod -A --fzf --debug
 
 ### Planned Features
 - **Port forwarding support**: `kubectl port-forward` integration with fzf selection
-- **Enhanced resource filtering**: Advanced filtering options for large resource lists
-- **Multi-resource operations**: Support for bulk operations on selected resources
-- **Configuration file**: Support for user configuration and custom aliases
 - **Extended shell support**: Improved bash compatibility and fish shell support
 
 ### Performance Improvements
 - **Caching layer**: Cache resource listings for faster subsequent operations
 - **Parallel processing**: Optimize resource fetching for large clusters
-- **Smart pagination**: Handle large resource lists more efficiently
 
 ### User Experience
 - **Custom fzf options**: Allow users to configure fzf behavior and appearance
